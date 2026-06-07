@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "verifiable-alignment"
+version = "0.1.0"
+description = "Full post-training pipeline: DPO → GRPO → RLVR on mathematical reasoning"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+
+dependencies = [
+    "torch>=2.2.0",
+    "transformers>=4.40.0",
+    "trl>=0.8.6",
+    "peft>=0.10.0",
+    "datasets>=2.18.0",
+    "accelerate>=0.29.0",
+    "deepspeed>=0.14.0",
+    "bitsandbytes>=0.43.0",
+    "wandb>=0.16.0",
+    "hydra-core>=1.3.0",
+    "omegaconf>=2.3.0",
+    "sympy>=1.12",
+    "latex2sympy2>=1.9.1",
+    "vllm>=0.4.0",
+    "lm-eval>=0.4.2",
+    "gradio>=4.26.0",
+    "huggingface-hub>=0.22.0",
+    "scipy>=1.13.0",
+    "matplotlib>=3.8.0",
+    "pandas>=2.2.0",
+    "tqdm>=4.66.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9.0",
+    "pre-commit>=3.7.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=. --cov-report=term-missing -v"

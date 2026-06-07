@@ -1,0 +1,13 @@
+# configs/data_gen.yaml
+teacher_model: google/gemma-2-2b-it
+temperatures: [0.3, 0.7, 1.0]
+n_per_problem: 4
+max_new_tokens: 512
+target_pairs: 10000
+difficulty_buckets:
+  1: 0.15
+  2: 0.20
+  3: 0.25
+  4: 0.25
+  5: 0.15
+hub_id: SaiTejaSrivilli/verifiable-alignment-preferences

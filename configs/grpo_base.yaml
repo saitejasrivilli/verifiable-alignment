@@ -1,0 +1,75 @@
+# configs/grpo_base.yaml
+# Group Relative Policy Optimization with Verifiable Rewards
+
+model:
+  name: SaiTejaSrivilli/verifiable-alignment-dpo   # warm-start from DPO checkpoint
+  torch_dtype: bfloat16
+  attn_implementation: flash_attention_2
+
+lora:
+  r: 64
+  lora_alpha: 128
+  lora_dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  bias: none
+  task_type: CAUSAL_LM
+
+data:
+  dataset_id: lighteval/MATH
+  train_split: train
+  eval_split: test
+  problem_field: problem
+  solution_field: solution
+  max_prompt_length: 512
+  max_new_tokens: 512
+
+grpo:
+  num_generations: 8           # G — rollouts per problem
+  temperature: 0.9             # sampling temperature for rollouts
+  top_p: 0.95
+
+  # PPO-style clipping
+  clip_range: 0.2              # ε for policy ratio clipping
+  clip_range_value: 0.2        # value function clip (unused in GRPO but kept for compat)
+
+  # Regularisation
+  kl_coeff: 0.04               # β — KL penalty against reference
+  entropy_coeff: 0.001         # entropy bonus to prevent mode collapse
+  length_penalty_coeff: 0.01   # penalise very short outputs
+
+  # Advantage computation
+  advantage_clip: 5.0          # clip normalised advantages to [-5, 5]
+  whiten_rewards: true         # group-normalise rewards before advantage computation
+
+training:
+  learning_rate: 1.0e-6
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.05
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 16
+  num_train_epochs: 2
+  max_grad_norm: 0.5
+  bf16: true
+  gradient_checkpointing: true
+
+  save_strategy: steps
+  save_steps: 200
+  evaluation_strategy: steps
+  eval_steps: 200
+
+  push_to_hub: true
+  hub_model_id: SaiTejaSrivilli/verifiable-alignment-grpo
+  hub_strategy: every_save
+
+  # vLLM rollout generation (set false if vllm not available)
+  use_vllm: true
+  vllm_gpu_memory_utilization: 0.4
+
+logging:
+  report_to: wandb
+  logging_steps: 5
+  run_name: grpo-g8
+  project: verifiable-alignment
+
+output:
+  output_dir: outputs/grpo

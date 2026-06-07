@@ -1,0 +1,17 @@
+# configs/dpo_sweep.yaml
+# wandb sweep configs/dpo_sweep.yaml
+# wandb agent <SWEEP_ID>
+
+program: training/train_dpo.py
+method: grid
+metric:
+  name: eval/rewards/margins
+  goal: maximize
+
+parameters:
+  beta:
+    values: [0.05, 0.1, 0.2]
+  learning_rate:
+    values: [1.0e-7, 5.0e-7, 1.0e-6]
+  lora_r:
+    values: [32, 64]

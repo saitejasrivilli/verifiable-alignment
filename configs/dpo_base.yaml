@@ -1,0 +1,62 @@
+# configs/dpo_base.yaml
+# Direct Preference Optimization — Mistral-7B-v0.3
+
+model:
+  name: mistralai/Mistral-7B-v0.3
+  torch_dtype: bfloat16
+  attn_implementation: flash_attention_2   # requires flash-attn installed
+
+lora:
+  r: 64
+  lora_alpha: 128
+  lora_dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  bias: none
+  task_type: CAUSAL_LM
+
+data:
+  dataset_id: SaiTejaSrivilli/verifiable-alignment-preferences
+  train_split: train
+  eval_split: validation
+  max_length: 1024
+  max_prompt_length: 512
+
+training:
+  beta: 0.1                          # KL penalty — sweep: [0.05, 0.1, 0.2]
+  loss_type: sigmoid                 # standard DPO loss
+  learning_rate: 5.0e-7
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.1
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 8     # effective batch = 16
+  num_train_epochs: 3
+  max_grad_norm: 1.0
+  weight_decay: 0.01
+  bf16: true
+  gradient_checkpointing: true
+  dataloader_num_workers: 4
+  remove_unused_columns: false
+
+  # Checkpointing
+  save_strategy: steps
+  save_steps: 500
+  evaluation_strategy: steps
+  eval_steps: 500
+  load_best_model_at_end: true
+  metric_for_best_model: eval_rewards/margins
+  greater_is_better: true
+
+  # HuggingFace Hub
+  push_to_hub: true
+  hub_model_id: SaiTejaSrivilli/verifiable-alignment-dpo
+  hub_strategy: every_save
+
+logging:
+  report_to: wandb
+  logging_steps: 10
+  run_name: dpo-beta0.1
+  project: verifiable-alignment
+
+output:
+  output_dir: outputs/dpo

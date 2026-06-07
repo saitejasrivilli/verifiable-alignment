@@ -1,0 +1,51 @@
+# configs/prm_base.yaml
+# Process Reward Model — step-level supervision
+
+model:
+  name: SaiTejaSrivilli/verifiable-alignment-grpo   # build on top of GRPO policy
+  torch_dtype: bfloat16
+  freeze_base: true            # only train the reward head
+
+prm_head:
+  hidden_size: 4096            # must match base model hidden size (Mistral-7B)
+  output_size: 1
+  dropout: 0.1
+
+data:
+  dataset_id: peiyi9979/Math-Shepherd   # MATH-Shepherd step-level annotations
+  train_split: train
+  eval_split: test
+  step_separator: "\n"         # token used to delimit reasoning steps
+  max_length: 1024
+
+training:
+  learning_rate: 1.0e-5
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.1
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  num_train_epochs: 3
+  max_grad_norm: 1.0
+  bf16: true
+  gradient_checkpointing: false  # head-only training — no need
+
+  save_strategy: epoch
+  evaluation_strategy: epoch
+  load_best_model_at_end: true
+  metric_for_best_model: eval_step_accuracy
+
+  push_to_hub: true
+  hub_model_id: SaiTejaSrivilli/verifiable-alignment-prm
+
+inference:
+  best_of_n: 8                 # N for best-of-N reranking at eval time
+  aggregation: product         # cumulative product of step probabilities (Lightman et al.)
+
+logging:
+  report_to: wandb
+  logging_steps: 20
+  run_name: prm-math-shepherd
+  project: verifiable-alignment
+
+output:
+  output_dir: outputs/prm
