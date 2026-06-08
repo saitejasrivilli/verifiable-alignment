@@ -40,6 +40,21 @@ GSM8K evaluation: 8-shot chain-of-thought, strict-match scoring.
 
 ---
 
+## DAPO Variant
+
+DAPO addresses instability on hard problems (MATH Level 4–5) via four changes over GRPO:
+
+| Change | GRPO | DAPO | Why |
+|--------|------|------|-----|
+| Clip range | symmetric ε=0.2 | low=0.2, high=0.28 | Larger positive updates improve hard problems |
+| Gradient | sequence-level | token-level | Lower variance for long CoT chains |
+| Zero-advantage groups | included (zero gradient) | skipped | Removes noise from trivial batches |
+| Entropy | none | coeff=0.001 | Prevents mode collapse on hard problems |
+
+Expected improvement on MATH Level 4–5: +3–5% over standard GRPO (run pending on 4×A30).
+
+---
+
 ## Architecture
 
 ```
@@ -74,6 +89,15 @@ Mistral-7B-v0.3 (base)
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────┐
+│  Stage 3b — DAPO (optional GRPO replacement)             │
+│  • Asymmetric clip: low=0.2, high=0.28                   │
+│  • Token-level policy gradient (lower variance)          │
+│  • Dynamic sampling: skip zero-advantage groups          │
+│  • Entropy bonus (coeff=0.001) vs mode collapse          │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────┐
 │  Stage 4 — Process Reward Model                          │
 │  • MATH-Shepherd step-level annotations                  │
 │  • Frozen base + linear head (head-only training)        │
@@ -92,6 +116,7 @@ verifiable-alignment/
 │   ├── dpo_base.yaml          # DPO hyperparameters
 │   ├── dpo_sweep.yaml         # W&B sweep (β × LR grid)
 │   ├── grpo_base.yaml         # GRPO hyperparameters
+│   ├── dapo_config.yaml       # DAPO hyperparameters (asymmetric clip, token-level)
 │   ├── prm_base.yaml          # PRM hyperparameters
 │   ├── ds_zero2.json          # DeepSpeed ZeRO-2
 │   └── accelerate_single.yaml
@@ -101,6 +126,7 @@ verifiable-alignment/
 ├── training/
 │   ├── train_dpo.py              # DPO + LoRA + KL/length callbacks
 │   ├── train_grpo.py             # GRPO + verifiable reward fn
+│   ├── train_dapo.py             # DAPO: clip-higher, token-level, dynamic sampling
 │   └── train_prm.py              # PRM head + calibration
 ├── eval/
 │   ├── evaluate_math.py          # lm-eval harness, difficulty breakdown
