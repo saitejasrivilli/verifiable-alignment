@@ -10,7 +10,9 @@ KL divergence analysis between trained policy and base reference.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,6 +27,25 @@ logger = logging.getLogger(__name__)
 REFERENCE_MODEL = "mistralai/Mistral-7B-v0.3"
 REFERENCE_SEED = 42     # fixed seed for reproducible reference set
 N_REFERENCE = 500
+
+
+def _load_accuracy_map(results_path: str = "eval/results.json") -> dict[str, float]:
+    """Load MATH accuracy per model from the eval results file."""
+    p = Path(results_path)
+    if not p.exists():
+        logger.warning(
+            f"Eval results not found at {results_path}. "
+            "Run eval/evaluate_math.py first to generate results.json. "
+            "Falling back to empty map — KL plot will omit accuracy axis."
+        )
+        return {}
+    with open(p) as f:
+        raw = json.load(f)
+    acc_map = {}
+    for model_name, metrics in raw.items():
+        if "math_accuracy_overall" in metrics:
+            acc_map[model_name] = metrics["math_accuracy_overall"]
+    return acc_map
 
 
 def load_reference_set(n: int = N_REFERENCE) -> list[str]:
@@ -87,12 +108,9 @@ def main(args: argparse.Namespace) -> None:
         "grpo":  ("SaiTejaSrivilli/verifiable-alignment-grpo", None),
     }
 
-    # From eval results (update with actual numbers)
-    accuracy_map = {
-        "base":  0.124,
-        "dpo":   0.197,
-        "grpo":  0.263,
-    }
+    accuracy_map = _load_accuracy_map(args.results_path)
+    if not accuracy_map:
+        logger.warning("No accuracy data found — KL plot will skip accuracy axis.")
 
     tokenizer = AutoTokenizer.from_pretrained(REFERENCE_MODEL)
     if tokenizer.pad_token is None:
@@ -124,20 +142,31 @@ def main(args: argparse.Namespace) -> None:
         del policy
         torch.cuda.empty_cache()
 
-    # KL vs accuracy tradeoff plot
+    # KL vs accuracy tradeoff plot (or KL-only bar chart if accuracy data is unavailable)
     fig, ax = plt.subplots(figsize=(7, 5))
     names = list(kl_results.keys())
     kls = [kl_results[n] for n in names]
-    accs = [accuracy_map.get(n, 0) * 100 for n in names]
 
-    ax.scatter(kls, accs, s=120, zorder=5)
-    for name, kl, acc in zip(names, kls, accs):
-        ax.annotate(name, (kl, acc), textcoords="offset points", xytext=(8, 4), fontsize=11)
+    if accuracy_map:
+        accs = [accuracy_map.get(n, 0) * 100 for n in names]
 
-    ax.plot(kls, accs, "k--", alpha=0.3)
-    ax.set_xlabel("KL Divergence from Base Model", fontsize=12)
-    ax.set_ylabel("MATH Accuracy (%)", fontsize=12)
-    ax.set_title("KL–Accuracy Tradeoff Across Training Stages", fontsize=13)
+        ax.scatter(kls, accs, s=120, zorder=5)
+        for name, kl, acc in zip(names, kls, accs):
+            ax.annotate(name, (kl, acc), textcoords="offset points", xytext=(8, 4), fontsize=11)
+
+        ax.plot(kls, accs, "k--", alpha=0.3)
+        ax.set_xlabel("KL Divergence from Base Model", fontsize=12)
+        ax.set_ylabel("MATH Accuracy (%)", fontsize=12)
+        ax.set_title("KL–Accuracy Tradeoff Across Training Stages", fontsize=13)
+    else:
+        ax.bar(names, kls)
+        for i, (name, kl) in enumerate(zip(names, kls)):
+            ax.text(i, kl + 0.005, f"{kl:.3f}", ha="center", fontsize=11)
+
+        ax.set_xlabel("Model", fontsize=12)
+        ax.set_ylabel("KL Divergence from Base Model", fontsize=12)
+        ax.set_title("KL Divergence Across Training Stages", fontsize=13)
+
     ax.grid(True, alpha=0.3)
 
     wandb.log({"kl_accuracy_tradeoff": wandb.Image(fig)})
@@ -150,4 +179,9 @@ def main(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--results_path",
+        default="eval/results.json",
+        help="Path to results.json produced by eval/evaluate_math.py.",
+    )
     main(parser.parse_args())

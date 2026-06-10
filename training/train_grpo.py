@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Optional
 
 import torch
-import torch.nn.functional as F
 import wandb
 from datasets import load_dataset
 from omegaconf import OmegaConf
@@ -72,38 +71,27 @@ def verifiable_reward(
     return rewards
 
 
-# ── Advantage computation ─────────────────────────────────────────────────────
-def compute_group_advantages(
-    rewards: torch.Tensor,
-    clip_range: float = 5.0,
-    eps: float = 1e-8,
-) -> torch.Tensor:
-    """
-    Group-relative advantage normalisation.
-
-    IMPORTANT: Normalise FIRST, then clip — not the other way around.
-    rewards: [G] tensor for one problem's rollout group
-    """
-    mean = rewards.mean()
-    std = rewards.std()
-    advantages = (rewards - mean) / (std + eps)
-    advantages = torch.clamp(advantages, -clip_range, clip_range)
-    return advantages
+# Advantage normalisation is handled internally by TRL's GRPOTrainer
+# (group-relative normalisation with configurable clip range, controlled
+# via the `epsilon` parameter in GRPOConfig).
+# For the DAPO variant with asymmetric clipping and dynamic group skipping,
+# see training/train_dapo.py which implements a custom DAPOTrainer.
 
 
-# ── Clip fraction monitoring callback ────────────────────────────────────────
+# ── Clip ratio monitoring callback ────────────────────────────────────────────
 class ClipFractionCallback(TrainerCallback):
     """
-    Logs clip fraction to W&B.
-    If clip_fraction > 0.3 consistently → LR is too high.
+    Logs clip ratio to W&B.
+    TRL's GRPOTrainer logs this metric as `train/clip_ratio`.
+    If clip_ratio > 0.3 consistently → LR is too high.
     """
 
     def on_log(self, args, state, control, logs=None, **kwargs):
-        if logs and "train/clip_fraction" in logs:
-            cf = logs["train/clip_fraction"]
+        if logs and "train/clip_ratio" in logs:
+            cf = logs["train/clip_ratio"]
             if cf > 0.3:
                 logger.warning(
-                    f"⚠️  High clip fraction at step {state.global_step}: {cf:.3f} "
+                    f"High clip ratio at step {state.global_step}: {cf:.3f} "
                     "(consider reducing learning rate)"
                 )
 
