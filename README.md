@@ -20,9 +20,21 @@ covering every stage that frontier labs (Anthropic, OpenAI, DeepSeek) use in pro
 | Synthetic data | Self-play, temperature sweep, difficulty stratification | 10K preference pairs |
 | Preference optimisation | DPO (β=0.1, LoRA rank-64) | +7.3% MATH accuracy |
 | RL with verifiable rewards | GRPO (G=8, symbolic verifier) | +6.6% over DPO |
+| RLAIF | AI judge (Groq) → DPO on AI-generated preference pairs | scalable alternative to RLHF |
+| Constitutional AI | Self-critique against 12 principles → revision pairs → DPO | no human/verifier needed |
 | Test-time compute | PRM best-of-8 reranking | +4.2% over GRPO |
+| Reward hacking analysis | Pearson(reward, accuracy), length exploitation, format gaming | diagnostic |
 
 **Final: Mistral-7B base 12.4% → 30.5% on MATH** (×2.46 improvement)
+
+### Feedback signal comparison
+
+| Method | Label source | Scale | Cost | Coverage |
+|---|---|---|---|---|
+| RLHF | Humans | ~1K pairs | High | Subjective quality |
+| RLAIF | AI judge (Groq/Claude) | Unlimited | Low (API) | Any task |
+| RLVR | Symbolic verifier | Unlimited | Zero | Verifiable tasks only |
+| Constitutional AI | Model self-critique | Unlimited | Zero | Any task |
 
 ---
 
